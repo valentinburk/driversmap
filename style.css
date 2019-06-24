@@ -30,6 +30,9 @@ form {
 }
 
 .location-content {
+	color: #000;
+	background-color: #fff;
+	padding: 15px;
 }
 
 .driver-name {

@@ -10,107 +10,98 @@ const ICON_COMPANY = 'company.png';
 const BTN_CLEAR_TEXT = 'ОЧИСТИТЬ';
 const BTN_CLEAR_COLOR = '#ffffff';
 
-const LOCATION_PLACEMARKS = {};
+const LOCATION_MARKERS = {};
 
 /**
 *  Initializer
 */
-ymaps.ready(initialize);
+DG.then(initialize);
 
 /**
-*  Initializes the Yandex Map on a page with
+*  Initializes the Map on a page with
 *  the Placemarks
 */
 function initialize() {
-  var map = new ymaps.Map("map", {
+  var map = DG.map('map', {
     center: [55.7605324, 37.6197714],
-    zoom: 10
-  }, {
-    searchControlProvider: 'yandex#search'
+    zoom: 9
   });
 
   initializeLocations(map);
   initializeDrivers(map);
   initializeCompanies(map);
-
-  map.events.add('click', function() {
-    map.balloon.close();
-  });
 }
 
 /**
 *  Initializes location points on map
-*  @param {Map} map Reference to Yandex map instance
+*  @param {Map} map Reference to the map instance
 */
 function initializeLocations(map) {
   locations.forEach(location => {
-    var locationPlacemark = new ymaps.Placemark([location.lat, location.lng], {
-      balloonContentHeader: location.companyname,
-      balloonContentBody: getLocationContent(location),
-      hintContent: location.companyname
+    var locationMarker = DG.marker([location.lat, location.lng], {
+      title: location.companyname,
     });
 
-    changeIcon(locationPlacemark, ICON_LOCATION);
+    changeIcon(locationMarker, ICON_LOCATION);
 
-    map.geoObjects.add(locationPlacemark);
+    locationMarker
+      .bindPopup(getLocationContent(location), {
+        maxWidth: 400
+      })
+      .addTo(map);
 
-    LOCATION_PLACEMARKS[location.id] = locationPlacemark;
+    LOCATION_MARKERS[location.id] = locationMarker;
   });
 }
 
 /**
 *  Initializes drivers points on map
-*  @param {Map} map Reference to Yandex map instance
+*  @param {Map} map Reference to the map instance
 */
 function initializeDrivers(map) {
   drivers.forEach(d => {
-    var driverPlacemark = new ymaps.Placemark(
-      [d.lat, d.lng],
-      {
-        hintContent: d.name
-      },
-      {
-        draggable: true
-      });
-
-    driverPlacemark.events.add('dragend', function(e) {
-      var [ lat, lng ] = driverPlacemark.geometry.getCoordinates();
-      updateForm(ACTION_DRAG_DRIVER, null, d.id, lat, lng);
+    var driverMarker = DG.marker([d.lat, d.lng], {
+      draggable: true
     });
 
-    changeIcon(driverPlacemark, d.iconDriver, [22, 30]);
+    changeIcon(driverMarker, d.iconDriver, [22, 30]);
 
-    map.geoObjects.add(driverPlacemark);
+    driverMarker
+      .bindPopup(d.name)
+      .on('dragend', function(e) {
+        var lat = e.target._latlng.lat.toFixed(12);
+        var lng = e.target._latlng.lng.toFixed(12);
+        updateForm(ACTION_DRAG_DRIVER, null, d.id, lat, lng);
+      })
+      .addTo(map);
   });
 }
 
 /**
 *  Initializes logistic companies points on map
-*  @param {Map} map Reference to Yandex map instance
+*  @param {Map} map Reference to the map instance
 */
 function initializeCompanies(map) {
   companies.forEach(c => {
     var hint = document.createElement('span');
     hint.innerHTML = c.description;
 
-    var companyPlacemark = new ymaps.Placemark(
-      [c.lat, c.lng],
-      {
-        hintContent: hint.innerHTML
-      });
+    var companyMarker = DG.marker([c.lat, c.lng]);
 
-    changeIcon(companyPlacemark, ICON_COMPANY, [24, 24]);
+    changeIcon(companyMarker, ICON_COMPANY, [24, 24]);
 
-    map.geoObjects.add(companyPlacemark);
+    companyMarker
+      .bindPopup(hint)
+      .addTo(map);
   });
 }
 
 /**
-*  Builds the content for the Placemark ballon.
-*  The balloon contains info about the location point and the list
+*  Builds the content for the Marker popup.
+*  The popup contains info about the location point and the list
 *  of drivers may be assigned to the chosen location.
 *  @param {Object} location The location object
-*  @return {string} HTML Content for the balloon
+*  @return {string} HTML Content for the popup
 */
 function getLocationContent(location) {
   var content = document.createElement('div');
@@ -169,28 +160,28 @@ function buildDriverLineInTable(location, driver) {
 *  @param {Object} driver Reference to the driver that is to appoint to the location
 */
 function changeDriver(location, driver) {
-  var placemark = LOCATION_PLACEMARKS[location.id];
+  var marker = LOCATION_MARKERS[location.id];
   var newIcon = (driver == undefined) ? ICON_LOCATION : ICON_LOCATION_DRIVER.replace('{id}', driver.id);
   var driverId = (driver == undefined) ? -1 : driver.id;
 
-  changeIcon(placemark, newIcon, [12, 20]);
+  changeIcon(marker, newIcon, [12, 20]);
   updateForm(ACTION_ASSIGN_DRIVER, location.id, driverId, null, null);
 }
 
 /**
-*  Changes the icon of Placemark object and closes the balloon
-*  @param {Placemark} placemark Reference to the placemark
+*  Changes the icon of Marker object and closes the popup
+*  @param {Marker} marker Reference to the marker
 *  @param {string} icon The icon file name located in 'imgs' folder
 *  @param {Array} size The size of the icon in format of array [width, height]. if not provided, the default value is used [32, 32]
 */
-function changeIcon(placemark, icon, size) {
-  placemark.options.set({
-    iconLayout: 'default#image',
-    iconImageHref: `imgs/${icon}`,
-    iconImageSize: size === undefined ? [32, 32] : size,
+function changeIcon(marker, icon, size) {
+  var icon = DG.icon({
+    iconSize: size === undefined ? [32, 32] : size,
+    iconUrl: `imgs/${icon}`
   });
 
-  placemark.balloon.close();
+  marker.setIcon(icon);
+  marker.closePopup();
 }
 
 /**
